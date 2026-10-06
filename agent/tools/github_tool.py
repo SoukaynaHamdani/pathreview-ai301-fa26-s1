@@ -92,6 +92,7 @@ class GitHubTool(BaseTool):
             "open_issues_count": repo_json.get("open_issues_count", 0),
             "last_commit_date": repo_json.get("pushed_at", ""),
             "has_readme": self._has_readme(username, repo_name),
+            "file_structure": self._fetch_file_structure(username, repo_name),
             "topics": repo_json.get("topics", []),
             "homepage": repo_json.get("homepage") or "",
         }
@@ -127,3 +128,29 @@ class GitHubTool(BaseTool):
             return response.status_code == 200
         except Exception:
             return False
+
+    def _fetch_file_structure(self, username: str, repo_name: str) -> list[str]:
+        """Fetch repository root directory contents to populate file_structure.
+
+        Args:
+            username: GitHub username
+            repo_name: Repository name
+
+        Returns:
+            List of file/directory names at the repo root
+        """
+        url = f"{self.base_url}/repos/{username}/{repo_name}/contents"
+
+        headers = {}
+        if self.api_token:
+            headers["Authorization"] = f"token {self.api_token}"
+
+        try:
+            response = httpx.get(url, headers=headers, timeout=5.0)
+            if response.status_code == 200:
+                contents = response.json()
+                if isinstance(contents, list):
+                    return [item.get("path", "") for item in contents if "path" in item]
+            return []
+        except Exception:
+            return []
